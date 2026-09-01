@@ -18,7 +18,8 @@ st.title("🤖 My Chatbot")
 TEXT_MODEL = "openai/gpt-oss-120b"        # current Groq text model (replaces deprecated llama-3.3-70b-versatile)
 VISION_MODEL = "qwen/qwen3.6-27b"         # current Groq vision model
 STT_MODEL = "whisper-large-v3-turbo"      
-
+TTS_MODEL = "playai-tts"                  # text-to-speech
+TTS_VOICE = "Fritz-PlayAI"                # pick any supported PlayAI voice
 
 
 @st.cache_resource
@@ -58,10 +59,20 @@ def retrieve(query, chunks, index, k=3):
     _, indices = index.search(query_vec, k)
     return [chunks[i] for i in indices[0]]
 
+def text_to_speech(text):
+    """Returns raw audio bytes for the given text using Groq's PlayAI TTS."""
+    response = client.audio.speech.create(
+        model=TTS_MODEL,
+        voice=TTS_VOICE,
+        input=text,
+        response_format="wav",
+    )
+    return response.read()
 
 
 with st.sidebar:
     temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
+    voice_reply = st.checkbox("Speak the bot's replies", value=False)
 
     if st.button("Clear chat"):
         st.session_state.messages = []
@@ -120,6 +131,16 @@ if audio_value is not None:
     st.info(f"🎙️ Transcribed: {user_text}")
 
 typed_text = st.chat_input("Ask me anything...")
+audio_value = st.audio_input("Or record a voice message")
+
+if audio_value is not None:
+    transcript = client.audio.transcriptions.create(
+        file=("audio.wav", audio_value.read()),
+        model=STT_MODEL,
+    )
+    user_text = transcript.text
+    st.info(f"Transcribed: {user_text}")
+
 if typed_text:
     user_text = typed_text
 
@@ -163,6 +184,11 @@ Question: {user_text}"""
     with st.chat_message("assistant"):
         placeholder = st.empty()
         full_response = ""
+
+    if voice_reply and full_response.strip():
+        with st.spinner("Generating voice reply..."):
+            audio_bytes = text_to_speech(full_response)
+        st.audio(audio_bytes, format="audio/wav")
 
         stream = client.chat.completions.create(
             model=model_to_use,
