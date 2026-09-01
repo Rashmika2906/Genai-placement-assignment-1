@@ -118,7 +118,10 @@ for msg in st.session_state.messages[1:]:
 
 
 uploaded_image = st.file_uploader("Attach an image (optional)", type=["png", "jpg", "jpeg"], key="chat_image")
-audio_value = st.audio_input("Or record a voice message")
+audio_value = st.audio_input(
+    "Or record a voice message",
+    key="audio_input"
+)
 
 user_text = None
 
@@ -131,7 +134,7 @@ if audio_value is not None:
     st.info(f"🎙️ Transcribed: {user_text}")
 
 typed_text = st.chat_input("Ask me anything...")
-audio_value = st.audio_input("Or record a voice message")
+
 
 if audio_value is not None:
     transcript = client.audio.transcriptions.create(
